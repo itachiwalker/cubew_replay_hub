@@ -1,12 +1,18 @@
 name: Keep Supabase Alive
 on:
   schedule:
-    - cron: '0 3 */3 * *'  # 3日に1回
+    - cron: '0 3 */3 * *'  # UTC 3:00（JST 12:00）に発動。詳細は下記
   workflow_dispatch:
+
+permissions:
+  contents: write  # 追記コミットに必要
+
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Ping replay hub
         run: |
           curl -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/get_replay" \
@@ -14,3 +20,13 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{"p_hash":"0000000000000000"}' > /dev/null 2>&1
+
+      - name: Log run (keeps this workflow's own schedule from being disabled after 60 days of repo inactivity)
+        run: |
+          echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ping" >> keep-alive.log
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add keep-alive.log
+          git commit -m "chore: keep-alive ping log" || exit 0
+          git push
+
