@@ -1,0 +1,8 @@
+# Supabase CLI local development artifacts
+supabase/.branches
+supabase/.temp
+
+# Environment / secrets — never commit these
+.env
+.env.local
+.env.*.local
