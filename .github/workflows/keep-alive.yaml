@@ -15,13 +15,17 @@ jobs:
 
       - name: Ping replay hub
         run: |
-          curl -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/get_replay" \
+          # 失敗(HTTPエラー・一時停止)なら実行を失敗させ、GitHubからのメールで気づけるようにする
+          # 新しい鍵(sb_publishable_...)は apikey ヘッダーだけで送る
+          curl -fsS --max-time 30 --retry 3 --retry-delay 20 \
+            -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/get_replay" \
             -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{"p_hash":"0000000000000000"}' > /dev/null 2>&1
+            -d '{"p_hash":"0000000000000000"}' \
+            -o /dev/null
 
       - name: Log run (keeps this workflow's own schedule from being disabled after 60 days of repo inactivity)
+        if: ${{ !cancelled() }}  # pingが失敗してもコミットは続ける
         run: |
           echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ping" >> keep-alive.log
           git config user.name "github-actions[bot]"
